@@ -1,0 +1,41 @@
+{
+    "loss": 0.432163804769516,
+    "accuracy": 0.9139785170555115,
+    "classification_report": {
+        "adenocarcinoma": {
+            "precision": 0.813953488372093,
+            "recall": 1.0,
+            "f1-score": 0.8974358974358974,
+            "support": 35.0
+        },
+        "normal": {
+            "precision": 1.0,
+            "recall": 0.8620689655172413,
+            "f1-score": 0.9259259259259259,
+            "support": 58.0
+        },
+        "accuracy": 0.9139784946236559,
+        "macro avg": {
+            "precision": 0.9069767441860466,
+            "recall": 0.9310344827586207,
+            "f1-score": 0.9116809116809117,
+            "support": 93.0
+        },
+        "weighted avg": {
+            "precision": 0.929982495623906,
+            "recall": 0.9139784946236559,
+            "f1-score": 0.9152038721931194,
+            "support": 93.0
+        }
+    },
+    "confusion_matrix": [
+        [
+            35,
+            0
+        ],
+        [
+            8,
+            50
+        ]
+    ]
+}
