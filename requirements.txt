@@ -16,4 +16,5 @@ scipy
 Flask
 Flask-Cors
 dagshub
+scikit-learn
 # -e .
