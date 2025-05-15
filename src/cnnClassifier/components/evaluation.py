@@ -9,8 +9,8 @@ from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
 
 
-#import dagshub
-#dagshub.init(repo_owner='bappymalik4161', repo_name='MLOPs-Production-Ready-Deep-Learning-Project', mlflow=True)
+import dagshub
+dagshub.init(repo_owner='shrey.jiwane09', repo_name='DLProject', mlflow=True)
 
 
 class Evaluation:
@@ -65,7 +65,7 @@ class Evaluation:
         self.class_labels = class_labels
 
         # Classification report and confusion matrix
-        self.report_dict = classification_report(y_true, y_pred, target_names=class_labels, output_dict=True)
+        self.report_dict = classification_report(y_true, y_pred, target_names=class_labels, output_dict=True,zero_division=0)
         self.cm = confusion_matrix(y_true, y_pred)
 
     
@@ -82,29 +82,29 @@ class Evaluation:
 
     
 
-    #def log_into_mlflow(self):
-        #mlflow.set_tracking_uri(self.config.mlflow_uri)
-        #tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
+    def log_into_mlflow(self):
+        mlflow.set_tracking_uri(self.config.mlflow_uri)
+        tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
 
-        #with mlflow.start_run():
+        with mlflow.start_run():
 
             # Log model params
-            #mlflow.log_params(self.config.all_params)
+            mlflow.log_params(self.config.all_params)
 
             # Log metrics
-            #mlflow.log_metrics({
-                #"loss": float(self.score[0]),
-                #"accuracy": float(self.score[1])
-            #})
+            mlflow.log_metrics({
+                "loss": float(self.score[0]),
+                "accuracy": float(self.score[1])
+            })
 
             # Save full classification report and confusion matrix
-            #mlflow.log_dict(self.report_dict, "classification_report.json")
-            #mlflow.log_dict({"confusion_matrix": self.cm.tolist()}, "confusion_matrix.json")
+            mlflow.log_dict(self.report_dict, "classification_report.json")
+            mlflow.log_dict({"confusion_matrix": self.cm.tolist()}, "confusion_matrix.json")
 
             # Log model to MLflow/DagsHub
-            #if tracking_url_type_store != "file":
-                #mlflow.keras.log_model(self.model, "model", registered_model_name="VGG16Model")
-            #else:
-                #mlflow.keras.log_model(self.model, "model")
+            if tracking_url_type_store != "file":
+                mlflow.keras.log_model(self.model, "model", registered_model_name="VGG16Model")
+            else:
+                mlflow.keras.log_model(self.model, "model")
 
     
