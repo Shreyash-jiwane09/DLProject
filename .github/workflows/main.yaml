@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Jenkins Job
-        uses: appleboy/jenkins-action@master
+        uses: appleboy/jenkins-action@v0.0.5
         with:
           url: ${{ secrets.URL }}
           user: ${{ secrets.USER }}
