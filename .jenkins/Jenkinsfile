@@ -20,7 +20,7 @@ pipeline {
     stage('Login to ECR') {
       steps {
         script {
-          sh 'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com'
+          sh "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com"
         }
 
       }
@@ -29,7 +29,7 @@ pipeline {
     stage('Build Image') {
       steps {
         script {
-          sh 'docker build -t ${ECR_REPOSITORY}:latest .'
+          sh "docker build -t $ECR_REPOSITORY:latest ."
         }
 
       }
@@ -38,7 +38,7 @@ pipeline {
     stage('Push Image') {
       steps {
         script {
-          sh 'docker push ${ECR_REPOSITORY}:latest'
+          sh "docker push $ECR_REPOSITORY:latest"
         }
 
       }
@@ -47,7 +47,7 @@ pipeline {
     stage('Continuous Deployment') {
       steps {
         sshagent(['ssh_key']) {
-          sh "ssh -o StrictHostKeyChecking=no -l ubuntu 65.0.57.141 'cd /home/ubuntu/ && wget https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/refs/heads/main/docker-compose.yml && export IMAGE_NAME=${ECR_REPOSITORY}:latest && aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com && docker compose up -d '"
+          sh "ssh -o StrictHostKeyChecking=no -l ubuntu 65.0.57.141 'cd /home/ubuntu/ && wget https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/refs/heads/main/docker-compose.yml && export IMAGE_NAME=$ECR_REPOSITORY:latest && aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com && docker compose up -d '"
         }
       }
     }
