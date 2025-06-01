@@ -47,24 +47,20 @@ pipeline {
     }
 
     stage('Continuous Deployment') {
-      steps {
-        sshagent(['ssh_key']) {
-          script {
-            sh """
-              ssh -o StrictHostKeyChecking=no ubuntu@43.205.14.255 '
-                cd /home/ubuntu/ &&
-                wget -O docker-compose.yml https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/main/docker-compose.yml &&
-                export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
-                aws ecr get-login-password --region ${AWS_REGION} | \
-                docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com &&
-                IMAGE_NAME=${ECR_REPOSITORY}:latest docker compose up -d
-              '
-            """
-          }
-        }
-      }
+  steps {
+    sshagent(['ssh_key']) {
+      sh """
+        ssh -o StrictHostKeyChecking=no -l ubuntu YOUR.EC2.IP.ADDRESS '
+          cd /home/ubuntu/ &&
+          wget -O docker-compose.yml https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/main/docker-compose.yml &&
+          export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com &&
+          docker compose up -d
+        '
+      """
     }
   }
+}
 
   post {
     always {
