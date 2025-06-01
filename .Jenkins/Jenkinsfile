@@ -1,7 +1,7 @@
 pipeline {
   agent any
   environment {
-    ECR_REPOSITORY = credentials('ECR_REPOSITORY')
+    ECR_REPOSITORY = credentials('ECR_REPOSITORY') // should be full URI
     AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')
     AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
@@ -20,7 +20,7 @@ pipeline {
     stage('Login to ECR') {
       steps {
         script {
-          sh 'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com'
+          sh "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com"
         }
       }
     }
@@ -28,7 +28,7 @@ pipeline {
     stage('Build Image') {
       steps {
         script {
-          sh 'docker build -t ${ECR_REPOSITORY}:latest .'
+          sh "docker build -t ${ECR_REPOSITORY}:latest ."
         }
       }
     }
@@ -36,7 +36,7 @@ pipeline {
     stage('Push Image') {
       steps {
         script {
-          sh 'docker push ${ECR_REPOSITORY}:latest'
+          sh "docker push ${ECR_REPOSITORY}:latest"
         }
       }
     }
