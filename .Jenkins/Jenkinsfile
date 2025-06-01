@@ -57,8 +57,7 @@ pipeline {
                 export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
                 aws ecr get-login-password --region ${AWS_REGION} | \
                 docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com &&
-                docker compose pull &&
-                docker compose up -d
+                IMAGE_NAME=${ECR_REPOSITORY}:latest docker compose up -d
               '
             """
           }
