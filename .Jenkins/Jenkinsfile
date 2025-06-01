@@ -45,7 +45,7 @@ pipeline {
       steps {
         sshagent(['ssh_key']) {
           sh '''
-            ssh -o StrictHostKeyChecking=no -l ubuntu 65.2.128.126 '
+            ssh -o StrictHostKeyChecking=no -l ubuntu 43.205.14.255 '
               cd /home/ubuntu/ &&
               wget https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/refs/heads/main/docker-compose.yml &&
               export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
