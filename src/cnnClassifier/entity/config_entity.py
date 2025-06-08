@@ -28,6 +28,9 @@ class PrepareBaseModelConfig:
 class TrainingConfig:
     updated_base_model_path: Path
     trained_model_path: Path
+    best_model_path: Path
+    training_log_path: Path
+    metrics_path: Path
     train_data: Path             
     val_data: Path               
     test_data: Path              
