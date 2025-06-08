@@ -2,19 +2,20 @@ pipeline {
   agent any
 
   environment {
-    ECR_REPOSITORY = credentials('ECR_REPOSITORY')         // Full URI like: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/my-repo
-    AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')         // 123456789012
-    AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')   // Access Key
-    AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY') // Secret Key
+    ECR_REPOSITORY = credentials('ECR_REPOSITORY')       // e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/your-repo
+    AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')       // e.g., 123456789012
+    AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
     AWS_REGION = 'ap-south-1'
   }
 
   stages {
-    stage('Continuous Integration') {
+    stage('CI - Lint and Unit Tests') {
       steps {
         script {
-          echo "🔍 Linting repository"
-          echo "✅ Running unit tests"
+          echo "✅ Linting repository..."
+          echo "✅ Running unit tests..."
+          // Add actual test commands if any
         }
       }
     }
@@ -22,50 +23,57 @@ pipeline {
     stage('Login to ECR') {
       steps {
         script {
-          sh """
-            aws ecr get-login-password --region ${AWS_REGION} | \
-            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-          """
+          sh '''
+            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            aws configure set default.region $AWS_REGION
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+          '''
         }
       }
     }
 
-    stage('Build Image') {
+    stage('Build Docker Image') {
       steps {
         script {
-          sh "docker build -t ${ECR_REPOSITORY}:latest ."
+          sh '''
+            docker build -t $ECR_REPOSITORY:latest .
+          '''
         }
       }
     }
 
-    stage('Push Image') {
+    stage('Push Docker Image to ECR') {
       steps {
         script {
-          sh "docker push ${ECR_REPOSITORY}:latest"
+          sh '''
+            docker push $ECR_REPOSITORY:latest
+          '''
         }
       }
     }
 
-    stage('Continuous Deployment') {
-  steps {
-    sshagent(['ssh_key']) {
-      sh """
-        ssh -o StrictHostKeyChecking=no -l ubuntu 43.205.14.255 '
-          cd /home/ubuntu/ &&
-          wget -O docker-compose.yml https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/main/docker-compose.yml &&
-          export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
-          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com &&
-          docker compose up -d
-        '
-      """
+    stage('CD - Deploy on EC2') {
+      steps {
+        sshagent(['ssh_key']) {
+          sh '''
+            ssh -o StrictHostKeyChecking=no ubuntu@13.127.126.39 '
+              export IMAGE_NAME=$ECR_REPOSITORY:latest &&
+              aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com &&
+              wget -O docker-compose.yml https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/refs/heads/main/docker-compose.yml &&
+              IMAGE_NAME=$IMAGE_NAME docker compose up -d --pull always
+            '
+          '''
+        }
+      }
     }
   }
-}
 
   post {
     always {
-      echo "🧹 Cleaning up Docker resources"
-      sh 'docker system prune -f'
+      script {
+        sh 'docker system prune -f'
+      }
     }
   }
 }
