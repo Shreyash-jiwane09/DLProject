@@ -38,6 +38,7 @@ class TrainingConfig:
     params_batch_size: int
     params_image_size: tuple
     params_is_augmentation: bool
+    root_dir: Path
 
 
 
