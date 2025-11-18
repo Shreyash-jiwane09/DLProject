@@ -1,11 +1,28 @@
 import os
-from box.exceptions import BoxValueError
+try:
+
+    
+    from box import ConfigBox
+    _HAS_BOX = True
+except ImportError:
+    from types import SimpleNamespace
+    _HAS_BOX = False
+
+
+    def ConfigBox(d):
+        def _to_ns(x):
+            if isinstance(x, dict):
+                return SimpleNamespace(**{k: _to_ns(v) for k, v in x.items()})
+            if isinstance(x, list):
+                return [_to_ns(v) for v in x]
+            return x
+        return _to_ns(d)
 import yaml
-from cnnClassifier import logger
+from src.cnnClassifier import logger
 import json
 import joblib
 from ensure import ensure_annotations
-from box import ConfigBox
+
 from pathlib import Path
 from typing import Any
 import base64
@@ -13,7 +30,7 @@ import base64
 
 
 @ensure_annotations
-def read_yaml(path_to_yaml: Path) -> ConfigBox:
+def read_yaml(path_to_yaml: Path) -> object:
     """reads yaml file and returns
 
     Args:
@@ -29,10 +46,11 @@ def read_yaml(path_to_yaml: Path) -> ConfigBox:
     try:
         with open(path_to_yaml) as yaml_file:
             content = yaml.safe_load(yaml_file)
+            if content is None:
+                raise ValueError("yaml file is empty")
             logger.info(f"yaml file: {path_to_yaml} loaded successfully")
             return ConfigBox(content)
-    except BoxValueError:
-        raise ValueError("yaml file is empty")
+
     except Exception as e:
         raise e
     
@@ -69,7 +87,7 @@ def save_json(path: Path, data: dict):
 
 
 @ensure_annotations
-def load_json(path: Path) -> ConfigBox:
+def load_json(path: Path) -> object:
     """load json files data
 
     Args:
