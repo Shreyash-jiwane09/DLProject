@@ -5,7 +5,7 @@ from cnnClassifier.utils.common import save_json
 import mlflow
 import mlflow.keras
 from urllib.parse import urlparse
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 import numpy as np
 
 
@@ -60,24 +60,42 @@ class Evaluation:
         class_labels = list(self.valid_generator.class_indices.keys())
 
         # Save to instance
+        self.predictions = predictions
         self.y_pred = y_pred
         self.y_true = y_true
         self.class_labels = class_labels
 
         # Classification report and confusion matrix
-        self.report_dict = classification_report(y_true, y_pred, target_names=class_labels, output_dict=True,zero_division=0)
+        self.report_dict = classification_report(y_true, y_pred, target_names=class_labels, output_dict=True, zero_division=0)
         self.cm = confusion_matrix(y_true, y_pred)
+        
+        # Calculate ROC-AUC score
+        if len(class_labels) == 2:
+            self.roc_auc = roc_auc_score(y_true, predictions[:, 1])
+        else:
+            from sklearn.preprocessing import label_binarize
+            y_true_bin = label_binarize(y_true, classes=range(len(class_labels)))
+            self.roc_auc = roc_auc_score(y_true_bin, predictions, average='weighted', multi_class='ovr')
 
     
     def save_score(self):
         all_metrics = {
             "loss": float(self.score[0]),
             "accuracy": float(self.score[1]),
+            "roc_auc_score": float(self.roc_auc),
             "classification_report": self.report_dict,
             "confusion_matrix": self.cm.tolist()
         }
 
         save_json(path=Path("metrics.json"), data=all_metrics)
+        
+        print("\n" + "="*50)
+        print("Evaluation Metrics Summary")
+        print("="*50)
+        print(f"Accuracy: {all_metrics['accuracy']:.4f} ({all_metrics['accuracy']*100:.2f}%)")
+        print(f"Loss: {all_metrics['loss']:.4f}")
+        print(f"ROC-AUC Score: {all_metrics['roc_auc_score']:.4f}")
+        print("="*50)
         print("✅ Saved evaluation metrics to metrics.json")
 
     
@@ -94,7 +112,8 @@ class Evaluation:
             # Log metrics
             mlflow.log_metrics({
                 "loss": float(self.score[0]),
-                "accuracy": float(self.score[1])
+                "accuracy": float(self.score[1]),
+                "roc_auc_score": float(self.roc_auc)
             })
 
             # Save full classification report and confusion matrix
@@ -106,5 +125,7 @@ class Evaluation:
                 mlflow.keras.log_model(self.model, "model", registered_model_name="VGG16Model")
             else:
                 mlflow.keras.log_model(self.model, "model")
+            
+            print("✅ Logged metrics and model to MLflow/DagsHub")
 
     
