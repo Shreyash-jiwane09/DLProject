@@ -21,7 +21,7 @@ training:
   trained_model_path: artifacts/training/model.h5
   best_model_path: artifacts/training/best_model.h5
   training_log_path: artifacts/training/training_logs.txt
-  metrics_path: artifacts/training/metrics.json
+  metrics_path: metrics.json
 
   train_data: data/train
   val_data: data/val
