@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
-from cnnClassifier.constants import *
-from cnnClassifier.utils.common import read_yaml, create_directories
-from cnnClassifier.entity.config_entity import (
+from src.cnnClassifier.constants import *
+from src.cnnClassifier.utils.common import read_yaml, create_directories
+from src.cnnClassifier.entity.config_entity import (
     DataIngestionConfig,
     PrepareBaseModelConfig,
     TrainingConfig,
@@ -73,6 +73,7 @@ class ConfigurationManager:
             params_batch_size=params["BATCH_SIZE"],
             params_image_size=params["IMAGE_SIZE"],
             params_is_augmentation=params["AUGMENTATION"],
+            root_dir=Path(training["root_dir"]),
         )
 
     def get_evaluation_config(self) -> EvaluationConfig:
