@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  lung-cancer-api:
+    build: .
+    container_name: lung-cancer-staging
+    ports:
+      - "8081:8080"
+    environment:
+      - FLASK_ENV=staging
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+    volumes:
+      - ./model:/app/model
+      - ./artifacts:/app/artifacts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  lung-cancer-api:
+    image: ${DOCKER_USER}/lung-cancer-classifier:latest
+    container_name: lung-cancer-production
+    ports:
+      - "80:8080"
+    environment:
+      - FLASK_ENV=production
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+    volumes:
+      - ./model:/app/model
+      - ./artifacts:/app/artifacts
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
