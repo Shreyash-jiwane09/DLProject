@@ -1,26 +1,39 @@
 pipeline {
     agent any
-    
+
     environment {
-        PYTHON_VERSION = '3.8'
-        DOCKER_IMAGE = 'lung-cancer-classifier'
-        DOCKER_TAG = "${BUILD_NUMBER}"
+        PYTHON_VERSION     = '3.8'
         MLFLOW_TRACKING_URI = credentials('mlflow-tracking-uri')
-        DAGSHUB_TOKEN = credentials('dagshub-token')
+        DAGSHUB_TOKEN       = credentials('dagshub-token')
+
+        // AWS Credentials
+        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        AWS_ACCOUNT_ID        = credentials('AWS_ACCOUNT_ID')
+        ECR_REPOSITORY        = credentials('ECR_REPOSITORY')
+        AWS_REGION = "us-east-1"
+
+        // EC2 deployment
+        EC2_USER = "ubuntu"
+        EC2_HOST = "35.175.72.156"
     }
-    
+
     stages {
+
+        /* --------------------------------------------------
+         *                CHECKOUT & CI STAGES
+         * -------------------------------------------------- */
         stage('Checkout') {
             steps {
-                echo 'Checking out code...'
+                echo "Checking out code..."
                 checkout scm
-                sh 'git status'
+                sh "git status"
             }
         }
-        
+
         stage('Setup Python Environment') {
             steps {
-                echo 'Setting up Python environment...'
+                echo "Setting up Python environment..."
                 sh '''
                     python3 -m venv venv
                     . venv/bin/activate
@@ -29,10 +42,10 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Run Unit Tests') {
             steps {
-                echo 'Running unit tests...'
+                echo "Running unit tests..."
                 sh '''
                     . venv/bin/activate
                     python -m pytest tests/ -v --junitxml=test-results.xml
@@ -44,10 +57,10 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Code Quality Check') {
             steps {
-                echo 'Running code quality checks...'
+                echo "Running code quality checks..."
                 sh '''
                     . venv/bin/activate
                     pip install pylint flake8
@@ -56,23 +69,21 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('DVC Pull Data') {
             steps {
-                echo 'Pulling data with DVC...'
+                echo "Pulling data via DVC..."
                 sh '''
                     . venv/bin/activate
                     dvc pull || echo "DVC pull failed, continuing..."
                 '''
             }
         }
-        
+
         stage('Train Model') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                echo 'Training model with DVC pipeline...'
+                echo "Training ML model..."
                 sh '''
                     . venv/bin/activate
                     export MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
@@ -80,129 +91,126 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Model Evaluation') {
             steps {
-                echo 'Evaluating model...'
+                echo "Evaluating model..."
                 sh '''
                     . venv/bin/activate
-                    python -c "
-import json
-with open('metrics.json') as f:
-    metrics = json.load(f)
-    print(f'Test Accuracy: {metrics[\"accuracy\"]:.4f}')
-    print(f'ROC-AUC Score: {metrics[\"roc_auc_score\"]:.4f}')
-    
-    # Fail if accuracy below threshold
-    if metrics['accuracy'] < 0.85:
-        raise Exception('Model accuracy below threshold!')
-"
+                    python evaluate.py
                 '''
             }
         }
-        
+
         stage('Generate Grad-CAM') {
             steps {
-                echo 'Generating Grad-CAM visualizations...'
+                echo "Generating Grad-CAM..."
                 sh '''
                     . venv/bin/activate
                     python gradcam_demo.py || echo "Grad-CAM generation failed"
                 '''
             }
         }
-        
+
+        /* --------------------------------------------------
+         *                AWS ECR LOGIN
+         * -------------------------------------------------- */
+        stage('AWS CLI Login to ECR') {
+            steps {
+                echo "Authenticating with AWS ECR..."
+                sh '''
+                    aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                    aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                    aws configure set default.region $AWS_REGION
+
+                    aws ecr get-login-password --region $AWS_REGION | docker login \
+                        --username AWS \
+                        --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                '''
+            }
+        }
+
+        /* --------------------------------------------------
+         *                BUILD & PUSH IMAGE
+         * -------------------------------------------------- */
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
+                echo "Building Docker image..."
                 sh '''
-                    docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                    docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    docker build -t $ECR_REPOSITORY:latest .
+                    docker tag $ECR_REPOSITORY:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
                 '''
             }
         }
-        
-        stage('Test Docker Container') {
+
+        stage('Push Docker Image to ECR') {
             steps {
-                echo 'Testing Docker container...'
+                echo "Pushing Docker image to AWS ECR..."
                 sh '''
-                    docker run -d --name test-container -p 8081:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}
-                    sleep 10
-                    curl -f http://localhost:8081/health || exit 1
-                    docker stop test-container
-                    docker rm test-container
+                    docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
                 '''
             }
         }
-        
-        stage('Push Docker Image') {
-            when {
-                branch 'main'
-            }
+
+        /* --------------------------------------------------
+         *                DEPLOY TO EC2 INSTANCE
+         * -------------------------------------------------- */
+        stage('Deploy to EC2') {
+            when { branch 'main' }
             steps {
-                echo 'Pushing Docker image to registry...'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
-                                                   usernameVariable: 'DOCKER_USER', 
-                                                   passwordVariable: 'DOCKER_PASS')]) {
+                echo "Deploying to EC2 instance..."
+
+                sshagent(['ssh_key']) {
                     sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_USER}/${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_USER}/${DOCKER_IMAGE}:latest
-                        docker push ${DOCKER_USER}/${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker push ${DOCKER_USER}/${DOCKER_IMAGE}:latest
+                        ssh -o StrictHostKeyChecking=no ubuntu@35.175.72.156 "
+                            cd /home/ubuntu/
+
+                            # Download latest docker-compose
+                            wget -O docker-compose.yml https://raw.githubusercontent.com/Shreyash-jiwane09/DLProject/refs/heads/main/docker-compose.yml
+
+                            export IMAGE_NAME=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
+
+                            # Login to ECR on EC2
+                            aws ecr get-login-password --region $AWS_REGION | docker login \
+                                --username AWS \
+                                --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+                            # Update docker-compose.yml with correct image
+                            sed -i \"s|image:.*|image: $IMAGE_NAME|\" docker-compose.yml
+
+                            docker compose pull
+                            docker compose up -d --force-recreate
+                        "
                     '''
                 }
             }
         }
-        
-        stage('Deploy to Staging') {
-            when {
-                branch 'develop'
-            }
-            steps {
-                echo 'Deploying to staging environment...'
-                sh '''
-                    docker-compose -f docker-compose.staging.yml up -d
-                '''
-            }
-        }
-        
-        stage('Deploy to Production') {
-            when {
-                branch 'main'
-            }
-            steps {
-                input message: 'Deploy to Production?', ok: 'Deploy'
-                echo 'Deploying to production environment...'
-                sh '''
-                    docker-compose -f docker-compose.prod.yml up -d
-                '''
-            }
-        }
-        
+
+        /* --------------------------------------------------
+         *                SAVE ARTIFACTS
+         * -------------------------------------------------- */
         stage('Archive Artifacts') {
             steps {
-                echo 'Archiving artifacts...'
-                archiveArtifacts artifacts: 'artifacts/**/*.png, artifacts/**/*.json, metrics.json', 
+                echo "Archiving artifacts..."
+                archiveArtifacts artifacts: 'artifacts/**/*.png, artifacts/**/*.json, metrics.json',
                                  allowEmptyArchive: true
             }
         }
     }
-    
+
     post {
         always {
-            echo 'Cleaning up...'
+            echo "Cleaning workspace..."
             sh '''
                 docker system prune -f || true
                 rm -rf venv || true
             '''
         }
         success {
-            echo 'Pipeline completed successfully! ✅'
-            // Send notification (Slack, Email, etc.)
+            echo "Pipeline completed successfully! ✅"
         }
         failure {
-            echo 'Pipeline failed! ❌'
-            // Send failure notification
+            echo "Pipeline failed! ❌"
         }
     }
 }
