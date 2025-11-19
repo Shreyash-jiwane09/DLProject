@@ -20,4 +20,4 @@ scikit-learn
 opencv-python
 Pillow
 python-dotenv
-# -e .
+-e .

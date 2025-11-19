@@ -18,7 +18,7 @@ except ImportError:
             return x
         return _to_ns(d)
 import yaml
-from src.cnnClassifier import logger
+from cnnClassifier import logger
 import json
 import joblib
 from ensure import ensure_annotations
