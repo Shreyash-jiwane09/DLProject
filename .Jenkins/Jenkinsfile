@@ -93,7 +93,7 @@ pipeline {
                 echo "Evaluating model..."
                 sh '''
                     . venv/bin/activate
-                    python src\cnnClassifier\components\evaluation.py
+                    python src/cnnClassifier/components/evaluation.py
                 '''
             }
         }
