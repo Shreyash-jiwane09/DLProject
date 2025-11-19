@@ -93,6 +93,7 @@ pipeline {
                 echo "Evaluating model..."
                 sh '''
                     . venv/bin/activate
+                    export DAGSHUB_TOKEN=${DAGSHUB_TOKEN}
                     python src/cnnClassifier/components/evaluation.py
                 '''
             }
