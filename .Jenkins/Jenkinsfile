@@ -71,12 +71,8 @@ pipeline {
         }
 
         stage('DVC Pull Data') {
-            steps {
-                echo "Pulling data via DVC..."
-                sh '''
-                    . venv/bin/activate
-                    dvc pull || echo "DVC pull failed, continuing..."
-                '''
+    steps {
+        echo "Skipping DVC Pull as requested..."
             }
         }
 
@@ -97,7 +93,7 @@ pipeline {
                 echo "Evaluating model..."
                 sh '''
                     . venv/bin/activate
-                    python evaluate.py
+                    python src\cnnClassifier\components\evaluation.py
                 '''
             }
         }
