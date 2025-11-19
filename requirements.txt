@@ -20,4 +20,5 @@ scikit-learn
 opencv-python
 Pillow
 python-dotenv
+pytest
 -e .
