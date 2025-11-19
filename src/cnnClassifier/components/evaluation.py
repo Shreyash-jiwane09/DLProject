@@ -7,10 +7,18 @@ import mlflow.keras
 from urllib.parse import urlparse
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 import numpy as np
-
-
 import dagshub
-dagshub.init(repo_owner='shrey.jiwane09', repo_name='DLProject', mlflow=True)
+
+
+
+os.environ["MLFLOW_TRACKING_USERNAME"] = "shrey.jiwane09"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = os.getenv("DAGSHUB_TOKEN")
+
+dagshub.init(
+    repo_owner='shrey.jiwane09',
+    repo_name='DLProject',
+    mlflow=True
+)
 
 
 class Evaluation:
